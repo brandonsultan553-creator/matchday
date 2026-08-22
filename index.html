@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0B3D2E" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<title>Matchday — Daily Ticket Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pitch:#0B3D2E;
+    --pitch-dark:#06251C;
+    --chalk:#F5F1E8;
+    --chalk-dim:#E7E0D0;
+    --ink:#14231D;
+    --amber:#D4A017;
+    --coral:#C1440E;
+    --teal:#1B7A72;
+    --line:#D8CFB8;
+    --shadow: 0 8px 24px rgba(6,37,28,0.18);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0; padding:0; background:var(--pitch-dark); color:var(--ink); font-family:'Inter',sans-serif;}
+  body{
+    background:
+      radial-gradient(circle at 50% -10%, rgba(255,255,255,0.06), transparent 40%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,0.03) 40px),
+      var(--pitch-dark);
+    min-height:100vh;
+    padding-bottom:40px;
+  }
+  .wrap{max-width:480px; margin:0 auto; padding:0 14px;}
+
+  /* Header / scoreboard */
+  header.board{
+    background:var(--pitch);
+    color:var(--chalk);
+    padding:22px 18px 26px;
+    border-radius:0 0 18px 18px;
+    box-shadow:var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  header.board::after{
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(90deg, transparent, transparent 46px, rgba(255,255,255,0.04) 47px);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--amber); margin:0 0 6px;
+  }
+  h1{
+    font-family:'Oswald', sans-serif; font-weight:700; letter-spacing:.01em;
+    font-size:30px; margin:0; line-height:1;
+    text-transform:uppercase;
+  }
+  .datebar{
+    display:flex; justify-content:space-between; align-items:baseline;
+    margin-top:14px; font-family:'JetBrains Mono',monospace; font-size:12px;
+    color:rgba(245,241,232,0.7);
+  }
+  .datebar b{color:var(--chalk); font-weight:600;}
+
+  nav.tabs{
+    display:flex; gap:6px; margin:16px 0 10px; padding:4px;
+    background:rgba(0,0,0,0.18); border-radius:12px;
+  }
+  nav.tabs button{
+    flex:1; padding:9px 4px; border:none; border-radius:9px;
+    font-family:'Inter'; font-weight:600; font-size:12.5px;
+    background:transparent; color:rgba(245,241,232,0.65);
+  }
+  nav.tabs button.active{background:var(--chalk); color:var(--pitch);}
+
+  section{display:none;}
+  section.active{display:block;}
+
+  /* Ticket card */
+  .ticket{
+    background:var(--chalk);
+    border-radius:14px;
+    margin-top:16px;
+    box-shadow:var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  .ticket .stub-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 16px 10px;
+  }
+  .stub-tag{
+    font-family:'Oswald'; font-weight:600; text-transform:uppercase;
+    font-size:13px; letter-spacing:.06em; color:var(--pitch);
+    display:flex; align-items:center; gap:8px;
+  }
+  .dot{width:9px; height:9px; border-radius:50%; display:inline-block;}
+  .dot.game{background:var(--pitch);}
+  .dot.btts{background:var(--teal);}
+  .dot.over{background:#2B6CB0;}
+  .dot.vip{background:var(--amber);}
+  .stub-count{
+    font-family:'JetBrains Mono'; font-size:11px; color:#7A7360;
+  }
+  .perf{
+    height:0; border-top:2px dashed var(--line); margin:0 16px;
+    position:relative;
+  }
+  .perf::before,.perf::after{
+    content:""; position:absolute; top:-8px; width:16px; height:16px;
+    border-radius:50%; background:var(--pitch-dark);
+  }
+  .perf::before{left:-24px;}
+  .perf::after{right:-24px;}
+
+  .pick{
+    padding:12px 16px; border-bottom:1px solid var(--chalk-dim);
+  }
+  .pick:last-child{border-bottom:none;}
+  .pick .top{display:flex; justify-content:space-between; gap:8px;}
+  .pick .match{font-weight:700; font-size:14.5px; color:var(--ink);}
+  .pick .league{font-size:10.5px; color:#8A836C; text-transform:uppercase; letter-spacing:.05em; margin-top:1px;}
+  .pick .odds{font-family:'JetBrains Mono'; font-weight:600; font-size:14px; color:var(--pitch); white-space:nowrap;}
+  .pick .market{font-size:12.5px; color:#3D4A42; margin-top:4px;}
+  .confbar-row{display:flex; align-items:center; gap:8px; margin-top:8px;}
+  .confbar{flex:1; height:6px; background:var(--chalk-dim); border-radius:3px; overflow:hidden;}
+  .confbar > i{display:block; height:100%; background:var(--teal); border-radius:3px;}
+  .conf-num{font-family:'JetBrains Mono'; font-size:11px; font-weight:600; color:var(--pitch); min-width:38px; text-align:right;}
+  .empty{padding:22px 16px; text-align:center; font-size:13px; color:#8A836C;}
+
+  .vip-summary{
+    padding:12px 16px 16px; display:flex; gap:10px;
+  }
+  .vip-box{flex:1; background:var(--pitch); border-radius:10px; padding:10px; text-align:center;}
+  .vip-box .label{font-size:9.5px; color:var(--amber); text-transform:uppercase; letter-spacing:.06em; font-family:'JetBrains Mono';}
+  .vip-box .value{font-family:'Oswald'; font-size:20px; color:var(--chalk); font-weight:600;}
+
+  /* Add entry form */
+  .card{
+    background:var(--chalk); border-radius:14px; padding:16px; margin-top:16px; box-shadow:var(--shadow);
+  }
+  .card h2{font-family:'Oswald'; text-transform:uppercase; font-size:16px; margin:0 0 12px; color:var(--pitch);}
+  label{display:block; font-size:11.5px; font-weight:600; color:#5A5545; margin:10px 0 4px; text-transform:uppercase; letter-spacing:.04em;}
+  input,select,textarea{
+    width:100%; padding:10px 11px; border-radius:9px; border:1.5px solid var(--line);
+    background:#fff; font-family:'Inter'; font-size:14px; color:var(--ink);
+  }
+  input:focus,select:focus,textarea:focus{outline:none; border-color:var(--pitch);}
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .scorehint{font-size:10.5px; color:#8A836C; margin-top:2px;}
+  .slider-row{display:flex; align-items:center; gap:10px;}
+  input[type=range]{accent-color:var(--pitch); width:100%;}
+  .slider-val{font-family:'JetBrains Mono'; font-weight:600; font-size:13px; width:32px; text-align:right;}
+  .btn{
+    width:100%; padding:13px; border:none; border-radius:10px; margin-top:16px;
+    background:var(--pitch); color:var(--chalk); font-family:'Oswald'; font-weight:600;
+    text-transform:uppercase; letter-spacing:.04em; font-size:14px;
+  }
+  .btn.secondary{background:transparent; border:1.5px solid var(--pitch); color:var(--pitch); margin-top:8px;}
+  .btn.danger{background:transparent; border:1.5px solid var(--coral); color:var(--coral);}
+
+  .list-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 0; border-bottom:1px solid var(--chalk-dim); font-size:13px;
+  }
+  .list-row:last-child{border-bottom:none;}
+  .list-row .del{color:var(--coral); font-size:12px; font-weight:600;}
+
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%);
+    background:var(--pitch); color:var(--chalk); padding:10px 18px; border-radius:20px;
+    font-size:13px; font-weight:600; box-shadow:var(--shadow); opacity:0; pointer-events:none;
+    transition:opacity .25s;
+  }
+  .toast.show{opacity:1;}
+
+  .note{
+    background:rgba(212,160,23,0.1); border:1px solid rgba(212,160,23,0.35);
+    border-radius:10px; padding:10px 12px; font-size:11.5px; color:#5A4A10; margin-top:16px; line-height:1.5;
+  }
+  footer.spacer{height:20px;}
+
+  /* Fixture fetch panel */
+  .fetchRow{display:flex; gap:8px; margin-top:4px;}
+  .fetchRow select{flex:2;}
+  .fetchRow button{flex:1; white-space:nowrap;}
+  .btn.small{padding:10px; font-size:12.5px; margin-top:0;}
+  .status-line{font-size:11.5px; color:#8A836C; margin-top:8px; min-height:14px;}
+  .status-line.err{color:var(--coral);}
+  .fixture-item{
+    border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; margin-top:8px; background:#fff;
+  }
+  .fixture-item .fx-top{display:flex; justify-content:space-between; align-items:center;}
+  .fixture-item .fx-match{font-weight:700; font-size:13.5px;}
+  .fixture-item .fx-time{font-family:'JetBrains Mono'; font-size:11px; color:#8A836C;}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+  .chip{
+    border:1.5px solid var(--pitch); color:var(--pitch); background:transparent;
+    border-radius:16px; padding:6px 10px; font-size:11.5px; font-weight:600;
+  }
+  .chip.filled{background:var(--pitch); color:var(--chalk);}
+  .chip[disabled]{opacity:.4;}
+  details.fetchPanel{
+    border:1.5px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:4px; background:#fff;
+  }
+  details.fetchPanel summary{font-weight:700; font-size:13px; color:var(--pitch); cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="board">
+    <p class="eyebrow">Daily Ticket Builder</p>
+    <h1>Matchday</h1>
+    <div class="datebar">
+      <span id="dateLabel">—</span>
+      <span><b id="entryCount">0</b> matches logged today</span>
+    </div>
+    <nav class="tabs">
+      <button data-tab="board" class="active">Today</button>
+      <button data-tab="add">Add Match</button>
+      <button data-tab="settings">History</button>
+    </nav>
+  </header>
+
+  <!-- TODAY BOARD -->
+  <section id="board" class="active">
+
+    <div class="ticket">
+      <div class="stub-head">
+        <span class="stub-tag"><span class="dot game"></span>Game of the Day</span>
+        <span class="stub-count" id="cnt-game">0 / 2</span>
+      </div>
+      <div class="perf"></div>
+      <div id="list-game"></div>
+    </div>
+
+    <div class="ticket">
+      <div class="stub-head">
+        <span class="stub-tag"><span class="dot btts"></span>BTTS of the Day</span>
+        <span class="stub-count" id="cnt-btts">0 / 2</span>
+      </div>
+      <div class="perf"></div>
+      <div id="list-btts"></div>
+    </div>
+
+    <div class="ticket">
+      <div class="stub-head">
+        <span class="stub-tag"><span class="dot over"></span>Over 1.5 of the Day</span>
+        <span class="stub-count" id="cnt-over">0 (min 3)</span>
+      </div>
+      <div class="perf"></div>
+      <div id="list-over"></div>
+    </div>
+
+    <div class="ticket">
+      <div class="stub-head">
+        <span class="stub-tag"><span class="dot vip"></span>VIP Ticket (max odd 2.00)</span>
+        <span class="stub-count" id="cnt-vip">0 legs</span>
+      </div>
+      <div class="perf"></div>
+      <div id="list-vip"></div>
+      <div class="vip-summary">
+        <div class="vip-box"><div class="label">Combo Odds</div><div class="value" id="vipOdds">—</div></div>
+        <div class="vip-box"><div class="label">True Prob</div><div class="value" id="vipProb">—</div></div>
+      </div>
+    </div>
+
+    <div class="note">VIP ticket is auto-built from your highest-confidence entries today, greedily added while combined odds stay ≤ 2.00 (max 3 legs). "True Prob" multiplies each leg's confidence — it will always read lower than the combo odds imply.</div>
+
+  </section>
+
+  <!-- ADD MATCH -->
+  <section id="add">
+
+    <div class="card">
+      <details class="fetchPanel" open>
+        <summary>Auto-Fetch Today's Fixtures & Odds</summary>
+        <div class="scorehint" style="margin-top:8px;">Uses your free API-Football key (set it under History → API Key). Pulls real fixtures + market odds — you still score each one.</div>
+        <div class="fetchRow">
+          <select id="fetchLeague">
+            <option value="Premier League|England">EPL — England</option>
+            <option value="Premiership|Scotland">SPL — Scotland</option>
+            <option value="La Liga|Spain">La Liga — Spain</option>
+            <option value="Serie A|Italy">Serie A — Italy</option>
+            <option value="Bundesliga|Germany">Bundesliga — Germany</option>
+            <option value="Jupiler Pro League|Belgium">Belgium Pro League</option>
+            <option value="Eredivisie|Netherlands">Netherlands Eredivisie</option>
+            <option value="Super League|China">China Super League</option>
+            <option value="Super Lig|Turkey">Turkey Super Lig</option>
+            <option value="Premier League|Russia">Russian Premier League</option>
+            <option value="Prva Liga|Slovenia">Slovenia PrvaLiga</option>
+          </select>
+          <button class="btn small" id="fetchFixturesBtn">Fetch</button>
+        </div>
+        <div class="status-line" id="fetchStatus"></div>
+        <div id="fixtureResults"></div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>Log a Match</h2>
+
+      <label>Category</label>
+      <select id="f-category">
+        <option value="game">Game of the Day</option>
+        <option value="btts">BTTS of the Day</option>
+        <option value="over">Over 1.5 of the Day</option>
+      </select>
+      <div class="scorehint">VIP ticket is built automatically from your best entries across all categories — don't log a match twice.</div>
+
+      <div class="row2">
+        <div><label>League</label><input id="f-league" placeholder="EPL, SPL, Serie A…" /></div>
+        <div><label>Odds</label><input id="f-odds" type="number" step="0.01" placeholder="1.35" /></div>
+      </div>
+
+      <label>Match</label>
+      <input id="f-match" placeholder="Man City vs Fulham" />
+
+      <label>Market / Selection</label>
+      <input id="f-market" placeholder="Over 1.5 Goals" />
+
+      <label>Other tipster sites (Forebet, Betmines, Kalaso…)</label>
+      <textarea id="f-tipster" rows="2" placeholder="e.g. Forebet: Over 1.5 65%. Betmines: BTTS Yes."></textarea>
+      <div class="scorehint">Cross-reference only — feeds a small bonus into your score below, doesn't replace your own analysis.</div>
+
+      <div id="sliders"></div>
+
+      <label>Notes</label>
+      <textarea id="f-notes" rows="2" placeholder="Optional context"></textarea>
+
+      <button class="btn" id="saveBtn">Save Match</button>
+    </div>
+
+    <div class="card">
+      <h2>Today's Log (<span id="logCount">0</span>)</h2>
+      <div id="todayLog"><div class="empty">No matches logged yet today.</div></div>
+    </div>
+  </section>
+
+  <!-- HISTORY / SETTINGS -->
+  <section id="settings">
+    <div class="card">
+      <h2>API Key</h2>
+      <div class="scorehint">Free key from dashboard.api-football.com (100 requests/day free). Stored only on this device.</div>
+      <label>API-Football Key</label>
+      <input id="apiKeyInput" placeholder="Paste your key here" />
+      <button class="btn small" id="saveKeyBtn" style="margin-top:10px;">Save Key</button>
+      <div class="status-line" id="keyStatus"></div>
+      <div class="note" style="margin-top:12px;">If "Fetch" gives a network/CORS error: some browsers block direct calls to api-football.com from a local file. Fix: open this app from a real URL instead of a local file (host it free on GitHub Pages or Netlify), or ask me to add a tiny proxy. Manual entry always works regardless.</div>
+    </div>
+
+    <div class="card">
+      <h2>Weights</h2>
+      <div class="scorehint">Must total 100. Adjust to match how you actually weigh evidence.</div>
+      <div id="weightSliders"></div>
+      <button class="btn secondary" id="resetWeights">Reset to Default</button>
+    </div>
+
+    <div class="card">
+      <h2>Past Days</h2>
+      <div id="historyList"><div class="empty">Nothing logged yet.</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Reset</h2>
+      <button class="btn danger" id="clearToday">Clear Today's Log</button>
+    </div>
+  </section>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const FACTORS = [
+  {key:'xg', label:'xG Data', weightDefault:28},
+  {key:'h2h', label:'Head to Head', weightDefault:18},
+  {key:'lineup', label:'Lineups / Team News', weightDefault:20},
+  {key:'injury', label:'Injuries / Suspensions', weightDefault:14},
+  {key:'form', label:'Recent Form', weightDefault:12},
+  {key:'rest', label:'Rest / Fixture Load', weightDefault:8},
+];
+
+let weights = {};
+FACTORS.forEach(f => weights[f.key] = f.weightDefault);
+
+function todayKey(){
+  const d = new Date();
+  return d.toISOString().slice(0,10);
+}
+function prettyDate(){
+  const d = new Date();
+  return d.toLocaleDateString(undefined, {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+}
+document.getElementById('dateLabel').textContent = prettyDate();
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1600);
+}
+
+// ---------- storage helpers ----------
+async function loadEntries(dateKey){
+  try{
+    const res = await window.storage.get('entries:' + dateKey);
+    return res ? JSON.parse(res.value) : [];
+  }catch(e){ return []; }
+}
+async function saveEntries(dateKey, entries){
+  try{
+    await window.storage.set('entries:' + dateKey, JSON.stringify(entries));
+  }catch(e){ console.error('save failed', e); }
+}
+async function loadWeights(){
+  try{
+    const res = await window.storage.get('settings:weights');
+    if(res) weights = JSON.parse(res.value);
+  }catch(e){ /* use defaults */ }
+}
+async function saveWeights(){
+  try{ await window.storage.set('settings:weights', JSON.stringify(weights)); }catch(e){}
+}
+async function loadApiKey(){
+  try{
+    const res = await window.storage.get('settings:apiKey');
+    return res ? res.value : '';
+  }catch(e){ return ''; }
+}
+async function saveApiKey(key){
+  try{ await window.storage.set('settings:apiKey', key); }catch(e){}
+}
+async function loadLeagueCache(){
+  try{
+    const res = await window.storage.get('settings:leagueCache');
+    return res ? JSON.parse(res.value) : {};
+  }catch(e){ return {}; }
+}
+async function saveLeagueCache(cache){
+  try{ await window.storage.set('settings:leagueCache', JSON.stringify(cache)); }catch(e){}
+}
+
+// ---------- API-Football integration ----------
+const API_BASE = 'https://v3.football.api-sports.io';
+
+async function apiFetch(path, apiKey){
+  const res = await fetch(API_BASE + path, {
+    headers: { 'x-apisports-key': apiKey }
+  });
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  if(data.errors && Object.keys(data.errors).length){
+    throw new Error(JSON.stringify(data.errors));
+  }
+  return data;
+}
+
+async function resolveLeague(name, country, apiKey){
+  const cache = await loadLeagueCache();
+  const cacheKey = name + '|' + country;
+  if(cache[cacheKey]) return cache[cacheKey];
+
+  const data = await apiFetch(`/leagues?name=${encodeURIComponent(name)}&country=${encodeURIComponent(country)}`, apiKey);
+  if(!data.response || !data.response.length) throw new Error('League not found: ' + name);
+  const league = data.response[0];
+  const currentSeason = league.seasons.find(s => s.current) || league.seasons[league.seasons.length - 1];
+  const info = { id: league.league.id, season: currentSeason.year };
+  cache[cacheKey] = info;
+  await saveLeagueCache(cache);
+  return info;
+}
+
+async function fetchFixturesForLeague(name, country, apiKey){
+  const { id, season } = await resolveLeague(name, country, apiKey);
+  const date = todayKey();
+  const data = await apiFetch(`/fixtures?league=${id}&season=${season}&date=${date}`, apiKey);
+  return data.response || [];
+}
+
+async function fetchOddsForFixture(fixtureId, apiKey){
+  const data = await apiFetch(`/odds?fixture=${fixtureId}`, apiKey);
+  const out = {};
+  if(!data.response || !data.response.length) return out;
+  const bookmaker = data.response[0].bookmakers && data.response[0].bookmakers[0];
+  if(!bookmaker) return out;
+  bookmaker.bets.forEach(bet=>{
+    if(bet.name === 'Match Winner'){
+      bet.values.forEach(v=>{
+        if(v.value === 'Home') out.home = v.odd;
+        if(v.value === 'Draw') out.draw = v.odd;
+        if(v.value === 'Away') out.away = v.odd;
+      });
+    }
+    if(bet.name === 'Both Teams Score'){
+      bet.values.forEach(v=>{
+        if(v.value === 'Yes') out.bttsYes = v.odd;
+        if(v.value === 'No') out.bttsNo = v.odd;
+      });
+    }
+    if(bet.name === 'Goals Over/Under'){
+      bet.values.forEach(v=>{
+        if(v.value === 'Over 1.5') out.over15 = v.odd;
+      });
+    }
+  });
+  return out;
+}
+
+document.getElementById('fetchFixturesBtn').addEventListener('click', async ()=>{
+  const statusEl = document.getElementById('fetchStatus');
+  const resultsEl = document.getElementById('fixtureResults');
+  const apiKey = await loadApiKey();
+  if(!apiKey){
+    statusEl.textContent = 'Add your API key under History tab → API Key first.';
+    statusEl.classList.add('err');
+    return;
+  }
+  statusEl.classList.remove('err');
+  statusEl.textContent = 'Fetching…';
+  resultsEl.innerHTML = '';
+
+  const [name, country] = document.getElementById('fetchLeague').value.split('|');
+  try{
+    const fixtures = await fetchFixturesForLeague(name, country, apiKey);
+    if(!fixtures.length){
+      statusEl.textContent = 'No fixtures found today for this league.';
+      return;
+    }
+    statusEl.textContent = fixtures.length + ' fixture(s) found. Tap a market to load it into the form below.';
+    resultsEl.innerHTML = fixtures.map((fx, i) => {
+      const time = new Date(fx.fixture.date).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+      return `
+        <div class="fixture-item" data-idx="${i}">
+          <div class="fx-top">
+            <span class="fx-match">${fx.teams.home.name} vs ${fx.teams.away.name}</span>
+            <span class="fx-time">${time}</span>
+          </div>
+          <div class="chips" id="chips-${i}">
+            <button class="chip" data-market="loading">Loading odds…</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    // fetch odds lazily per fixture, one at a time
+    for(let i=0; i<fixtures.length; i++){
+      const fx = fixtures[i];
+      const chipsEl = document.getElementById('chips-' + i);
+      try{
+        const odds = await fetchOddsForFixture(fx.fixture.id, apiKey);
+        const chips = [];
+        if(odds.home) chips.push({label:'Home ' + odds.home, market:'Home Win', odds:odds.home});
+        if(odds.away) chips.push({label:'Away ' + odds.away, market:'Away Win', odds:odds.away});
+        if(odds.bttsYes) chips.push({label:'BTTS Yes ' + odds.bttsYes, market:'BTTS Yes', odds:odds.bttsYes});
+        if(odds.bttsNo) chips.push({label:'BTTS No ' + odds.bttsNo, market:'BTTS No', odds:odds.bttsNo});
+        if(odds.over15) chips.push({label:'Over 1.5 ' + odds.over15, market:'Over 1.5 Goals', odds:odds.over15});
+
+        chipsEl.innerHTML = chips.length
+          ? chips.map(c=>`<button class="chip" data-league="${name}" data-match="${fx.teams.home.name} vs ${fx.teams.away.name}" data-market="${c.market}" data-odds="${c.odds}">${c.label}</button>`).join('')
+          : '<button class="chip" disabled>No odds available — enter manually</button>';
+
+        chipsEl.querySelectorAll('.chip[data-odds]').forEach(btn=>{
+          btn.addEventListener('click', ()=>{
+            document.getElementById('f-league').value = btn.dataset.league;
+            document.getElementById('f-match').value = btn.dataset.match;
+            document.getElementById('f-market').value = btn.dataset.market;
+            document.getElementById('f-odds').value = btn.dataset.odds;
+            chipsEl.querySelectorAll('.chip').forEach(c=>c.classList.remove('filled'));
+            btn.classList.add('filled');
+            toast('Loaded into form — now score it below');
+            window.scrollTo({top: document.querySelector('.card:nth-of-type(2)').offsetTop - 70, behavior:'smooth'});
+          });
+        });
+      }catch(e){
+        chipsEl.innerHTML = '<button class="chip" disabled>Odds unavailable</button>';
+      }
+    }
+  }catch(e){
+    statusEl.textContent = 'Fetch failed: ' + e.message + ' — if this is a CORS error, the free key may need a small proxy; check History tab notes.';
+    statusEl.classList.add('err');
+  }
+});
+
+document.getElementById('saveKeyBtn').addEventListener('click', async ()=>{
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if(!key){ toast('Enter a key first'); return; }
+  await saveApiKey(key);
+  document.getElementById('keyStatus').textContent = 'Saved on this device.';
+  toast('API key saved');
+});
+
+// ---------- scoring ----------
+function confidence(scores){
+  let total = 0, wsum = 0;
+  FACTORS.forEach(f=>{
+    const s = scores[f.key] ?? 50;
+    const w = weights[f.key] ?? f.weightDefault;
+    total += s * w;
+    wsum += w;
+  });
+  const tipsterBonus = scores.tipsterBonus || 0;
+  let conf = wsum > 0 ? total / wsum : 50;
+  conf = Math.min(100, conf + tipsterBonus);
+  return Math.round(conf * 10) / 10;
+}
+
+// ---------- render sliders (add form) ----------
+function buildSliders(){
+  const container = document.getElementById('sliders');
+  container.innerHTML = '';
+  FACTORS.forEach(f=>{
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+      <label>${f.label}</label>
+      <div class="slider-row">
+        <input type="range" min="0" max="100" value="50" id="slider-${f.key}">
+        <span class="slider-val" id="val-${f.key}">50</span>
+      </div>`;
+    container.appendChild(wrap);
+  });
+  FACTORS.forEach(f=>{
+    const slider = document.getElementById('slider-'+f.key);
+    const val = document.getElementById('val-'+f.key);
+    slider.addEventListener('input', ()=> val.textContent = slider.value);
+  });
+}
+buildSliders();
+
+function buildWeightSliders(){
+  const container = document.getElementById('weightSliders');
+  container.innerHTML = '';
+  FACTORS.forEach(f=>{
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+      <label>${f.label}</label>
+      <div class="slider-row">
+        <input type="range" min="0" max="60" value="${weights[f.key]}" id="w-${f.key}">
+        <span class="slider-val" id="wval-${f.key}">${weights[f.key]}</span>
+      </div>`;
+    container.appendChild(wrap);
+  });
+  FACTORS.forEach(f=>{
+    const slider = document.getElementById('w-'+f.key);
+    const val = document.getElementById('wval-'+f.key);
+    slider.addEventListener('change', async ()=>{
+      weights[f.key] = parseInt(slider.value);
+      val.textContent = slider.value;
+      await saveWeights();
+      renderBoard();
+    });
+    slider.addEventListener('input', ()=> val.textContent = slider.value);
+  });
+}
+
+// ---------- save new match ----------
+document.getElementById('saveBtn').addEventListener('click', async ()=>{
+  const league = document.getElementById('f-league').value.trim();
+  const match = document.getElementById('f-match').value.trim();
+  const market = document.getElementById('f-market').value.trim();
+  const odds = parseFloat(document.getElementById('f-odds').value);
+  const category = document.getElementById('f-category').value;
+  const tipsterNote = document.getElementById('f-tipster').value.trim();
+  const notes = document.getElementById('f-notes').value.trim();
+
+  if(!match || !odds || odds <= 1){
+    toast('Add a match name and valid odds (>1.00)');
+    return;
+  }
+
+  const scores = {};
+  FACTORS.forEach(f=>{
+    scores[f.key] = parseInt(document.getElementById('slider-'+f.key).value);
+  });
+  scores.tipsterBonus = tipsterNote ? 3 : 0;
+
+  const entry = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    league, match, market, odds, category, tipsterNote, notes,
+    scores,
+    conf: confidence(scores)
+  };
+
+  const dk = todayKey();
+  const entries = await loadEntries(dk);
+  entries.push(entry);
+  await saveEntries(dk, entries);
+
+  // reset form
+  document.getElementById('f-league').value = '';
+  document.getElementById('f-match').value = '';
+  document.getElementById('f-market').value = '';
+  document.getElementById('f-odds').value = '';
+  document.getElementById('f-tipster').value = '';
+  document.getElementById('f-notes').value = '';
+  buildSliders();
+
+  toast('Match saved — Confidence ' + entry.conf + '%');
+  renderTodayLog();
+  renderBoard();
+});
+
+// ---------- render today's log (Add tab) ----------
+async function renderTodayLog(){
+  const dk = todayKey();
+  const entries = await loadEntries(dk);
+  document.getElementById('logCount').textContent = entries.length;
+  document.getElementById('entryCount').textContent = entries.length;
+  const el = document.getElementById('todayLog');
+  if(entries.length === 0){
+    el.innerHTML = '<div class="empty">No matches logged yet today.</div>';
+    return;
+  }
+  el.innerHTML = entries.map(e => `
+    <div class="list-row">
+      <span>${e.match} <span style="color:#8A836C">— ${e.market || e.category} (${e.conf}%)</span></span>
+      <span class="del" data-id="${e.id}">Remove</span>
+    </div>
+  `).join('');
+  el.querySelectorAll('.del').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.id;
+      const dk2 = todayKey();
+      let entries2 = await loadEntries(dk2);
+      entries2 = entries2.filter(x=>x.id !== id);
+      await saveEntries(dk2, entries2);
+      renderTodayLog();
+      renderBoard();
+    });
+  });
+}
+
+// ---------- render board ----------
+function pickRow(e, showCategoryDot){
+  const pct = Math.max(0, Math.min(100, e.conf));
+  return `
+    <div class="pick">
+      <div class="top">
+        <div>
+          <div class="match">${e.match}</div>
+          <div class="league">${e.league || 'League n/a'}</div>
+        </div>
+        <div class="odds">${e.odds.toFixed(2)}</div>
+      </div>
+      <div class="market">${e.market || ''}</div>
+      <div class="confbar-row">
+        <div class="confbar"><i style="width:${pct}%"></i></div>
+        <div class="conf-num">${e.conf}%</div>
+      </div>
+    </div>`;
+}
+
+async function renderBoard(){
+  const dk = todayKey();
+  const entries = await loadEntries(dk);
+
+  const byCat = {game:[], btts:[], over:[]};
+  entries.forEach(e => { if(byCat[e.category]) byCat[e.category].push(e); });
+  Object.keys(byCat).forEach(k => byCat[k].sort((a,b)=>b.conf - a.conf));
+
+  // Game of the day: top 2
+  const game = byCat.game.slice(0,2);
+  document.getElementById('list-game').innerHTML = game.length
+    ? game.map(e=>pickRow(e)).join('')
+    : '<div class="empty">Log a match under "Game of the Day" to fill this in.</div>';
+  document.getElementById('cnt-game').textContent = game.length + ' / 2';
+
+  // BTTS: top 2
+  const btts = byCat.btts.slice(0,2);
+  document.getElementById('list-btts').innerHTML = btts.length
+    ? btts.map(e=>pickRow(e)).join('')
+    : '<div class="empty">Log a match under "BTTS of the Day" to fill this in.</div>';
+  document.getElementById('cnt-btts').textContent = btts.length + ' / 2';
+
+  // Over 1.5: all, min 3 target
+  const over = byCat.over;
+  document.getElementById('list-over').innerHTML = over.length
+    ? over.map(e=>pickRow(e)).join('')
+    : '<div class="empty">Log matches under "Over 1.5 of the Day" — aim for at least 3.</div>';
+  document.getElementById('cnt-over').textContent = over.length + (over.length < 3 ? ' (need ' + (3-over.length) + ' more)' : ' logged');
+
+  // VIP: greedy build from ALL entries by confidence, odds product <= 2.00, max 3 legs
+  const sorted = [...entries].sort((a,b)=>b.conf - a.conf);
+  let vipLegs = [];
+  let product = 1;
+  for(const e of sorted){
+    if(vipLegs.length >= 3) break;
+    const candidate = product * e.odds;
+    if(candidate <= 2.00){
+      vipLegs.push(e);
+      product = candidate;
+    }
+  }
+  document.getElementById('list-vip').innerHTML = vipLegs.length
+    ? vipLegs.map(e=>pickRow(e)).join('')
+    : '<div class="empty">Log a few matches — the VIP ticket builds itself from your best entries.</div>';
+  document.getElementById('cnt-vip').textContent = vipLegs.length + ' legs';
+
+  if(vipLegs.length){
+    const trueProb = vipLegs.reduce((acc,e)=>acc * (e.conf/100), 1);
+    document.getElementById('vipOdds').textContent = product.toFixed(2);
+    document.getElementById('vipProb').textContent = Math.round(trueProb*1000)/10 + '%';
+  } else {
+    document.getElementById('vipOdds').textContent = '—';
+    document.getElementById('vipProb').textContent = '—';
+  }
+}
+
+// ---------- history ----------
+async function renderHistory(){
+  const el = document.getElementById('historyList');
+  try{
+    const res = await window.storage.list('entries:');
+    const keys = (res && res.keys) ? res.keys : [];
+    const dk = todayKey();
+    const pastKeys = keys.filter(k => k !== 'entries:' + dk).sort().reverse();
+    if(pastKeys.length === 0){
+      el.innerHTML = '<div class="empty">Nothing logged yet.</div>';
+      return;
+    }
+    let rows = '';
+    for(const k of pastKeys.slice(0,14)){
+      const date = k.replace('entries:', '');
+      const res2 = await window.storage.get(k);
+      const entries = res2 ? JSON.parse(res2.value) : [];
+      rows += `<div class="list-row"><span>${date}</span><span style="color:#8A836C">${entries.length} matches logged</span></div>`;
+    }
+    el.innerHTML = rows;
+  }catch(e){
+    el.innerHTML = '<div class="empty">Nothing logged yet.</div>';
+  }
+}
+
+// ---------- clear today ----------
+document.getElementById('clearToday').addEventListener('click', async ()=>{
+  if(!confirm('Clear all matches logged today? This cannot be undone.')) return;
+  await saveEntries(todayKey(), []);
+  toast('Today cleared');
+  renderTodayLog();
+  renderBoard();
+});
+
+document.getElementById('resetWeights').addEventListener('click', async ()=>{
+  FACTORS.forEach(f => weights[f.key] = f.weightDefault);
+  await saveWeights();
+  buildWeightSliders();
+  renderBoard();
+  toast('Weights reset');
+});
+
+// ---------- tabs ----------
+document.querySelectorAll('nav.tabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab === 'settings') renderHistory();
+  });
+});
+
+// ---------- init ----------
+(async function init(){
+  await loadWeights();
+  buildWeightSliders();
+  await renderTodayLog();
+  await renderBoard();
+  const savedKey = await loadApiKey();
+  if(savedKey) document.getElementById('apiKeyInput').value = savedKey;
+})();
+
+// ---------- PWA install support ----------
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline support optional */ });
+  });
+}
+</script>
+</body>
+</html>
